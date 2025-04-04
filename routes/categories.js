@@ -1,170 +1,77 @@
-import express from 'express'
+import express from 'express';
 import { Category } from '../models/category.js';
-import multer from "multer";
-import fs from "fs"
 
+const router = express.Router();
 
-const router = express.Router()
-
-var imagesArr = [];
-// var categoryEditId;
-
-const storage = multer.diskStorage({
-    destination: function (req, file, cb) {
-        cb(null, "uploads")
-    },
-    filename: function (req, file, cb) {
-        cb(null, `${Date.now()}_${file.originalname}`)
-    }
-})
-
-const upload = multer({ storage: storage })
-
-router.post('/upload', upload.array("images"), async (req, res) => {
-
-    imagesArr = [];
-    const files = req.files;
-
-    for (let i = 0; i < files.length; i++) {
-        imagesArr.push(files[i].filename)
-    }
-
-    return res.json(imagesArr)
-})
-
+// Get all categories
 router.get('/', async (req, res) => {
     try {
-        const categoryList = await Category.find()
+        const categoryList = await Category.find();
 
-        if (!categoryList) {
-            return res.status(500).json({ success: false })
+        if (!categoryList || categoryList.length === 0) {
+            return res.status(404).json({ error: true, msg: "No categories found" });
         }
 
-        return res.status(200).json({
-            categoryList : categoryList
-        })
-
+        return res.status(200).json({ categoryList: categoryList });
     } catch (error) {
-        return res.status(500).json({ success: false })
+        return res.status(500).json({ error: true, msg: "An error occurred while fetching categories", details: error.message });
     }
-})
+});
 
+// Get category by ID
 router.get('/:id', async (req, res) => {
-
-    // categoryEditId = req.params.id;
-
-    const category = await Category.findById(req.params.id)
-
-    if (!category) {
-        return res.status(500).json({ message: 'The category with the given ID was not found' })
-    }
-
-    return res.status(200).send(category)
-})
-
-
-router.delete('/deleteImage', async (req, res) => {
-    const imgUrl = req.query.img;
-
-    if (!imgUrl) {
-        return res.status(400).json({ success: false, msg: 'Image URL is required' });
-    }
-
     try {
-        const urlArr = imgUrl.split('/');
-        const image = urlArr[urlArr.length - 1];
+        const category = await Category.findById(req.params.id);
 
-        // Delete the image file from the uploads folder
-        const imagePath = `uploads/${image}`;
-        if (fs.existsSync(imagePath)) {
-            fs.unlinkSync(imagePath);
-        } else {
-            return res.status(404).json({ success: false, msg: 'Image not found!' });
+        if (!category) {
+            return res.status(404).json({ error: true, msg: "The category with the given ID was not found" });
         }
 
-        return res.status(200).json({ success: true, msg: 'Image deleted successfully!' });
+        return res.status(200).json(category);
     } catch (error) {
-        console.error(error);
-        return res.status(500).json({ success: false, msg: 'Failed to delete the image' });
+        return res.status(500).json({ error: true, msg: "An error occurred while fetching the category", details: error.message });
     }
-})
+});
 
+// Delete category
 router.delete('/:id', async (req, res) => {
+    try {
+        const deletedCategory = await Category.findByIdAndDelete(req.params.id);
 
-    const category = await Category.findById(req.params.id)
-    const images = category.images;
-
-    if (images.length !== 0) {
-        for (let image of images) {
-            fs.unlinkSync(`uploads/${image}`)
+        if (!deletedCategory) {
+            return res.status(404).json({ error: true, msg: "Category not found!" });
         }
+
+        return res.status(200).json({ success: true, msg: "Category Deleted!" });
+    } catch (error) {
+        return res.status(500).json({ error: true, msg: "An error occurred while deleting the category", details: error.message });
     }
+});
 
-    const deletedCategory = await Category.findByIdAndDelete(req.params.id)
-
-    if (!deletedCategory) {
-        return res.status(404).json({
-            message: 'Category not found!',
-            success: false
-        })
-    }
-
-    return res.status(200).json({
-        success: true,
-        message: 'Category Deleted!'
-    })
-})
-
+// Create category
 router.post('/create', async (req, res) => {
-    let catObj = {}
-    if (imagesArr.length > 0) {
-        catObj = {
-            name: req.body.name,
-            slug: req.body.slug,
-            images: imagesArr
+    try {
+        const { name } = req.body;
+
+        if (!name) {
+            return res.status(400).json({ error: true, msg: "Category name is required" });
         }
-    } else {
-        catObj = {
-            name: req.body.name,
-            slug: req.body.slug,
+
+        const existingCategory = await Category.findOne({ name });
+        if (existingCategory) {
+            return res.status(400).json({ error: true, msg: "Category already exists" });
         }
+
+        const newCategory = await Category.create({ name });
+
+        if (!newCategory) {
+            return res.status(500).json({ error: true, msg: "Something went wrong while adding the category" });
+        }
+
+        return res.status(201).json(newCategory);
+    } catch (error) {
+        return res.status(500).json({ error: true, msg: "An error occurred while adding the category", details: error.message });
     }
+});
 
-    let category = new Category(catObj)
-
-    if (!category) {
-        res.status(500).json({
-            error: error,
-            success: false
-        })
-    }
-
-    category = await category.save()
-
-    imagesArr = []
-
-    return res.status(201).json(category);
-})
-
-// router.put('/:id', async (req, res) => {
-
-//     const category = await Category.findByIdAndUpdate(
-//         req.params.id,
-//         {
-//             name: req.body.name,
-//             images: imagesArr
-//         },
-//         { new: true }
-//     )
-
-//     if (!category) {
-//         return res.status(500).json({
-//             message: 'Category cannot be updated',
-//             success: false
-//         })
-//     }
-
-//     return res.send(category);
-// })
-
-export default router;     
+export default router;

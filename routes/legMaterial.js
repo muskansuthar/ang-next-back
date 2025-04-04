@@ -1,76 +1,62 @@
-import express from 'express'
-import { Legmaterial } from '../models/legMaterial.js'
+import express from 'express';
+import { Legmaterial } from '../models/legMaterial.js';
 
+const router = express.Router();
 
-const router = express.Router()
-
+// Get all leg materials
 router.get('/', async (req, res) => {
     try {
-        const legmaterialList = await Legmaterial.find()
+        const legmaterialList = await Legmaterial.find();
 
-        if (!legmaterialList) {
-            return res.status(500).json({ success: false })
+        if (!legmaterialList || legmaterialList.length === 0) {
+            return res.status(404).json({ error: true, msg: "No leg materials found" });
         }
-        return res.status(200).json({
-            legMaterials : legmaterialList
-        });
 
+        return res.status(200).json({ legMaterials: legmaterialList });
     } catch (error) {
-        return res.status(500).json({ success: false })
+        return res.status(500).json({ error: true, msg: "An error occurred while fetching leg materials", details: error.message });
     }
-})
+});
 
+// Delete a leg material
 router.delete('/:id', async (req, res) => {
+    try {
+        const deletedLegmaterial = await Legmaterial.findByIdAndDelete(req.params.id);
 
-    const deletedLegmaterial = await Legmaterial.findByIdAndDelete(req.params.id)
+        if (!deletedLegmaterial) {
+            return res.status(404).json({ error: true, msg: "Legmaterial not found!" });
+        }
 
-    if (!deletedLegmaterial) {
-        return res.status(404).json({
-            message: 'Legmaterial not found!',
-            success: false
-        })
+        return res.status(200).json({ success: true, msg: "Legmaterial Deleted!" });
+    } catch (error) {
+        return res.status(500).json({ error: true, msg: "An error occurred while deleting the leg material", details: error.message });
     }
+});
 
-    return res.status(200).json({
-        success: true,
-        message: 'Legmaterial Deleted!'
-    })
-})
-
+// Create a new leg material
 router.post('/create', async (req, res) => {
+    try {
+        const { name } = req.body;
 
-    const { name } = req.body
+        if (!name) {
+            return res.status(400).json({ error: true, msg: "Legmaterial name is required" });
+        }
 
-    if (!name) {
-        return res.status(500).json({
-            error: error,
-            success: false,
-            msg: "legmaterial name is required"
-        })
+        const existingLegmaterial = await Legmaterial.findOne({ name });
+        if (existingLegmaterial) {
+            return res.status(400).json({ error: true, msg: "Legmaterial already exists" });
+        }
+
+        const newLegmaterial = await Legmaterial.create({ name });
+
+        if (!newLegmaterial) {
+            return res.status(500).json({ error: true, msg: "Something went wrong while adding legmaterial" });
+        }
+
+        return res.status(201).json(newLegmaterial);
+    } catch (error) {
+        return res.status(500).json({ error: true, msg: "An error occurred while adding legmaterial", details: error.message });
     }
+});
 
-    const legmaterial = await Legmaterial.findOne({ name });
-    if (legmaterial) {
-        return res.status(500).json({
-            error: error,
-            success: false,
-            msg: "legmaterial already exists"
-        })
-    }
-
-    const newlegmaterial = await Legmaterial.create({
-        name
-    })
-
-    if (!newlegmaterial) {
-        return res.status(500).json({
-            error: error,
-            success: false,
-            msg: "Something went wrong while adding legmaterial"
-        })
-    }
-
-    return res.status(201).json(newlegmaterial)
-})
-
-export default router;   
+export default router;

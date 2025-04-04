@@ -20,6 +20,31 @@ router.get('/', async (req, res) => {
           },
         },
       ],
+    }).populate('category legfinish legmaterial topfinish topmaterial'); // Populate category if needed
+
+    return res.status(200).json({products:items});
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ msg: 'Server error' });
+  }
+});
+
+router.get('/filter', async (req, res) => {
+  try {
+    const query = req.query.q; // Query for name or category
+    if (!query) {
+      return res.status(400).json({ msg: 'Query is required' });
+    }
+
+    const items = await Product.find({
+      $or: [
+        { name: { $regex: query, $options: 'i' } }, // Search by product name (case-insensitive)
+        {
+          category: { 
+            $in: await getMatchingCategoryIds(query) // Search by matching category
+          },
+        },
+      ],
     }).populate('category'); // Populate category if needed
 
     return res.status(200).json(items);

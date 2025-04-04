@@ -18,11 +18,6 @@ const userSchema = mongoose.Schema({
     password: {
         type: String
     },
-    images: [
-        {
-            type: String
-        }
-    ],
     isAdmin: {
         type: Boolean,
         default: true

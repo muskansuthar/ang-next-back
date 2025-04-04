@@ -1,76 +1,63 @@
-import express from 'express'
-import { Topmaterial } from '../models/topMaterial.js'
+import express from 'express';
+import { Topmaterial } from '../models/topMaterial.js';
 
+const router = express.Router();
 
-const router = express.Router()
-
+// Get all top materials
 router.get('/', async (req, res) => {
     try {
-        const topmaterialList = await Topmaterial.find()
+        const topMaterialList = await Topmaterial.find();
 
-        if (!topmaterialList) {
-            return res.status(500).json({ success: false })
+        if (!topMaterialList || topMaterialList.length === 0) {
+            return res.status(404).json({ error: true, msg: "No top materials found" });
         }
-        return res.status(200).json({
-            topMaterials : topmaterialList
-        });
 
+        return res.status(200).json({ topMaterials: topMaterialList });
     } catch (error) {
-        return res.status(500).json({ success: false })
+        return res.status(500).json({ error: true, msg: "An error occurred while fetching top materials", details: error.message });
     }
-})
+});
 
+// Delete a top material
 router.delete('/:id', async (req, res) => {
+    try {
+        const deletedTopMaterial = await Topmaterial.findByIdAndDelete(req.params.id);
 
-    const deletedTopmaterial = await Topmaterial.findByIdAndDelete(req.params.id)
+        if (!deletedTopMaterial) {
+            return res.status(404).json({ error: true, msg: "Topmaterial not found!" });
+        }
 
-    if (!deletedTopmaterial) {
-        return res.status(404).json({
-            message: 'Topmaterial not found!',
-            success: false
-        })
+        return res.status(200).json({ success: true, msg: "Topmaterial Deleted!" });
+    } catch (error) {
+        return res.status(500).json({ error: true, msg: "An error occurred while deleting the top material", details: error.message });
     }
+});
 
-    return res.status(200).json({
-        success: true,
-        message: 'Topmaterial Deleted!'
-    })
-})
-
+// Create a new top material
 router.post('/create', async (req, res) => {
+    try {
+        const { name } = req.body;
 
-    const { name } = req.body
+        if (!name) {
+            return res.status(400).json({ error: true, msg: "Topmaterial name is required" });
+        }
 
-    if (!name) {
-        return res.status(500).json({
-            error: error,
-            success: false,
-            msg: "topmaterial name is required"
-        })
+        const existingTopMaterial = await Topmaterial.findOne({ name });
+        if (existingTopMaterial) {
+            return res.status(400).json({ error: true, msg: "Topmaterial already exists" });
+        }
+
+        const newTopMaterial = await Topmaterial.create({ name });
+
+        if (!newTopMaterial) {
+            return res.status(500).json({ error: true, msg: "Something went wrong while adding topmaterial" });
+        }
+
+        return res.status(201).json(newTopMaterial);
+    } catch (error) {
+        return res.status(500).json({ error: true, msg: "An error occurred while adding topmaterial", details: error.message });
     }
+});
 
-    const topmaterial = await Topmaterial.findOne({ name });
-    if (topmaterial) {
-        return res.status(500).json({
-            error: error,
-            success: false,
-            msg: "topmaterial already exists"
-        })
-    }
-
-    const newtopmaterial = await Topmaterial.create({
-        name
-    })
-
-    if (!newtopmaterial) {
-        return res.status(500).json({
-            error: error,
-            success: false,
-            msg: "Something went wrong while adding topmaterial"
-        })
-    }
-
-    return res.status(201).json(newtopmaterial)
-})
-
-export default router;   
+export default router;
+  
