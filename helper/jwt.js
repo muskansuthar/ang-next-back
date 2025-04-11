@@ -6,10 +6,12 @@ function authJwt() {
         secret: secret,
         algorithms: ["HS256"]
     }).unless({
-        custom: (req) => 
-            req.method === "GET" ||
-            /\/api\/user(\/.*)?$/.test(req.path), 
+        custom: (req) =>
+            req.method === "GET" ||                         
+            /\/api\/user(\/.*)?$/.test(req.path) ||        
+            /\/api\/contact(\/.*)?$/.test(req.path)
     });
 }
 
 export default authJwt;
+

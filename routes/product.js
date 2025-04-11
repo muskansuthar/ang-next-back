@@ -7,6 +7,7 @@ import { Topfinish } from "../models/topFinish.js";
 import { Topmaterial } from "../models/topMaterial.js";
 import multer from "multer";
 import fs from "fs";
+import path from 'path';
 
 const router = express.Router();
 
@@ -49,7 +50,7 @@ router.get("/featured", async (req, res) => {
   const productList = await Product.find({ isFeatured: true });
 
   if (!productList) {
-    return res.status(500).json({ success: false });
+    return res.status(500).json({ error: true, msg:"Featured Products not found" });
   }
 
   return res.status(200).json(productList);
@@ -79,7 +80,7 @@ router.get("/filter", async (req, res) => {
 
     return res.status(200).json({ products: productList });
   } catch (error) {
-    return res.status(500).json({ success: false, message: error.message });
+    return res.status(500).json({ error: true, msg: error.message });
   }
 });
 
@@ -90,7 +91,7 @@ router.get("/category", async (req, res) => {
     if (!categoryId) {
       return res
         .status(400)
-        .json({ success: false, message: "Category is required" });
+        .json({ error: true, msg: "Category is required" });
     }
 
     // Find products that match the category
@@ -100,7 +101,7 @@ router.get("/category", async (req, res) => {
 
     return res.status(200).json({ products: productList });
   } catch (error) {
-    return res.status(500).json({ success: false, message: error.message });
+    return res.status(500).json({ error: true, msg: error.message });
   }
 });
 
@@ -111,77 +112,133 @@ router.get("/", async (req, res) => {
     );
 
     if (!productList) {
-      return res.status(500).json({ success: false });
+      return res.status(500).json({ error: true, msg:"Products not found" });
     }
     return res.status(200).json({
       products: productList,
     });
   } catch (error) {
-    return res.status(500).json({ success: false });
+    return res.status(500).json({ error: true, msg:"Server error" });
   }
 });
 
-router.post("/create", async (req, res) => {
-  const { category, legfinish, legmaterial, topfinish, topmaterial } = req.body;
+router.post("/create", upload.array("images"), async (req, res) => {
+  try {
+    const { category, legfinish, legmaterial, topfinish, topmaterial, name } = req.body;
+    const files = req.files;
 
-  const categoryId = await Category.findById(category);
-  if (!categoryId) {
-    return res.status(404).send("Invalid Category!");
-  }
-  const legfinishId = await Legfinish.findById(legfinish);
-  if (!legfinishId) {
-    return res.status(404).send("Invalid legfinish!");
-  }
-  const legmaterialId = await Legmaterial.findById(legmaterial);
-  if (!legmaterialId) {
-    return res.status(404).send("Invalid legmaterial!");
-  }
-
-  const topfinishId = topfinish?.trim() ? topfinish : null;
-  const topmaterialId = topmaterial?.trim() ? topmaterial : null;
-
-  if (topfinishId) {
-    const topfinishD = await Topfinish.findById(topfinishId);
-    if (!topfinishD) {
-      return res.status(404).send("Invalid topfinish!");
+    // Validate inputs
+    if (!category || !legfinish || !legmaterial) {
+      return res.status(400).json({ error: true, msg: "Category, legfinish, and legmaterial are required" });
     }
-  }
 
-  if (topmaterialId) {
-    const topmaterialD = await Topmaterial.findById(topmaterialId);
-    if (!topmaterialD) {
-      return res.status(404).send("Invalid topmaterial!");
+    if (!files || files.length === 0) {
+      return res.status(400).json({ error: true, msg: "At least one image is required" });
     }
-  }
 
-  let product = new Product({
-    name: req.body.name,
-    description: req.body.description,
-    images: imagesArr,
-    price: req.body.price,
-    category: category,
-    legfinish: legfinish,
-    legmaterial: legmaterial,
-    topfinish: topfinishId,
-    topmaterial: topmaterialId,
-    height: req.body.height,
-    width: req.body.width,
-    length: req.body.length,
-    weight: req.body.weight,
-    isFeatured: req.body.isFeatured,
-  });
+    // Check if the product already exists by name
+    const existingProduct = await Product.findOne({ name: name.trim() });
+    if (existingProduct) {
+      // Cleanup uploaded files if the product already exists
+      if (files && files.length > 0) {
+        files.forEach(file => fs.unlinkSync(path.join('uploads', file.filename)));
+      }
 
-  product = await product.save();
+      return res.status(409).json({ error: true, msg: "Product with this name already exists" });
+    }
 
-  if (!product) {
-    res.status(500).json({
-      error: err,
-      success: false,
+    // Check existence of category, legfinish, and legmaterial
+    const [categoryExists, legfinishExists, legmaterialExists] = await Promise.all([
+      Category.findById(category),
+      Legfinish.findById(legfinish),
+      Legmaterial.findById(legmaterial),
+    ]);
+
+    if (!categoryExists) {
+      return res.status(404).json({ error: true, msg: "Invalid Category!" });
+    }
+    if (!legfinishExists) {
+      return res.status(404).json({ error: true, msg: "Invalid Legfinish!" });
+    }
+    if (!legmaterialExists) {
+      return res.status(404).json({ error: true, msg: "Invalid Legmaterial!" });
+    }
+
+    // Check for topfinish and topmaterial if provided
+    let topfinishId = topfinish?.trim() ? topfinish : null;
+    let topmaterialId = topmaterial?.trim() ? topmaterial : null;
+
+    if (topfinishId) {
+      const topfinishExists = await Topfinish.findById(topfinishId);
+      if (!topfinishExists) {
+        return res.status(404).json({ error: true, msg: "Invalid Topfinish!" });
+      }
+    }
+
+    if (topmaterialId) {
+      const topmaterialExists = await Topmaterial.findById(topmaterialId);
+      if (!topmaterialExists) {
+        return res.status(404).json({ error: true, msg: "Invalid Topmaterial!" });
+      }
+    }
+
+    // Process files (images)
+    const imagePaths = files.map(file => file.filename);
+
+    // Create the new product
+    let product = new Product({
+      name: req.body.name,
+      images: imagePaths,
+      category: category,
+      legfinish: legfinish,
+      legmaterial: legmaterial,
+      topfinish: topfinishId,
+      topmaterial: topmaterialId,
+      height: req.body.height,
+      width: req.body.width,
+      length: req.body.length,
+      cbm: req.body.cbm,
+      isFeatured: req.body.isFeatured,
+    });
+
+    // Save product to the database
+    product = await product.save();
+
+    if (!product) {
+      // Cleanup uploaded images on error
+      if (files && files.length > 0) {
+        files.forEach(file => fs.unlinkSync(path.join('uploads', file.filename)));
+      }
+      return res.status(500).json({
+        error: true,
+        msg: "Failed to create product"
+      });
+    }
+
+    // Return success response
+    return res.status(201).json({
+      success: true,
+      msg: "Product created successfully",
+      product
+    });
+
+  } catch (err) {
+    // Cleanup on error
+    if (req.files?.length) {
+      req.files.forEach(file => {
+        fs.unlinkSync(path.join('uploads', file.filename));
+      });
+    }
+
+    return res.status(500).json({
+      error: true,
+      msg: process.env.NODE_ENV === 'production'
+        ? "Server error"
+        : err.message
     });
   }
-
-  return res.status(201).json(product);
 });
+
 
 router.get("/:id", async (req, res) => {
   productEditId = req.params.id;
@@ -192,7 +249,7 @@ router.get("/:id", async (req, res) => {
   if (!product) {
     return res
       .status(500)
-      .json({ message: "The product with the given ID was not found" });
+      .json({ error: true, msg: "The product with the given ID was not found" });
   }
 
   return res.status(200).send(product);
@@ -204,7 +261,7 @@ router.delete("/deleteImage", async (req, res) => {
   if (!imgUrl) {
     return res
       .status(400)
-      .json({ success: false, msg: "Image URL is required" });
+      .json({ error: true, msg: "Image URL is required" });
   }
 
   try {
@@ -216,17 +273,17 @@ router.delete("/deleteImage", async (req, res) => {
     if (fs.existsSync(imagePath)) {
       fs.unlinkSync(imagePath);
     } else {
-      return res.status(404).json({ success: false, msg: "Image not found!" });
+      return res.status(404).json({ error: true, msg: "Image not found!" });
     }
 
     return res
       .status(200)
-      .json({ success: true, msg: "Image deleted successfully!" });
+      .json({ error: true, msg: "Image deleted successfully!" });
   } catch (error) {
     console.error(error);
     return res
       .status(500)
-      .json({ success: false, msg: "Failed to delete the image" });
+      .json({ error: true, msg: "Failed to delete the image" });
   }
 });
 
@@ -244,80 +301,117 @@ router.delete("/:id", async (req, res) => {
 
   if (!deletedProduct) {
     res.status(404).json({
-      message: "Product not found!",
-      success: false,
+      error: true,
+      msg: "Product not found!",
     });
   }
 
   return res.status(200).json({
-    success: true,
-    message: "Product Deleted!",
+    error: true,
+    msg: "Product Deleted!",
   });
 });
 
-router.put("/:id", async (req, res) => {
-  const { category, legfinish, legmaterial, topfinish, topmaterial } = req.body;
+router.put("/:id", upload.array("images"), async (req, res) => {
+  try {
+    const { category, legfinish, legmaterial, topfinish, topmaterial, name } = req.body;
+    const files = req.files;
 
-  const categoryId = await Category.findById(category);
-  if (!categoryId) {
-    return res.status(404).send("Invalid Category!");
-  }
-  const legfinishId = await Legfinish.findById(legfinish);
-  if (!legfinishId) {
-    return res.status(404).send("Invalid legfinish!");
-  }
-  const legmaterialId = await Legmaterial.findById(legmaterial);
-  if (!legmaterialId) {
-    return res.status(404).send("Invalid legmaterial!");
-  }
-
-  const topfinishId = topfinish?.trim() ? topfinish : null;
-  const topmaterialId = topmaterial?.trim() ? topmaterial : null;
-
-  if (topfinishId) {
-    const topfinishD = await Topfinish.findById(topfinishId);
-    if (!topfinishD) {
-      return res.status(404).send("Invalid topfinish!");
+    if (!category || !legfinish || !legmaterial || !name) {
+      return res.status(400).json({ error: true, msg: "Name, category, legfinish, and legmaterial are required" });
     }
-  }
 
-  if (topmaterialId) {
-    const topmaterialD = await Topmaterial.findById(topmaterialId);
-    if (!topmaterialD) {
-      return res.status(404).send("Invalid topmaterial!");
+    const [categoryExists, legfinishExists, legmaterialExists] = await Promise.all([
+      Category.findById(category),
+      Legfinish.findById(legfinish),
+      Legmaterial.findById(legmaterial),
+    ]);
+
+    if (!categoryExists) return res.status(404).json({ error: true, msg: "Invalid Category!" });
+    if (!legfinishExists) return res.status(404).json({ error: true, msg: "Invalid Legfinish!" });
+    if (!legmaterialExists) return res.status(404).json({ error: true, msg: "Invalid Legmaterial!" });
+
+    let topfinishId = topfinish?.trim() ? topfinish : null;
+    let topmaterialId = topmaterial?.trim() ? topmaterial : null;
+
+    if (topfinishId) {
+      const topfinishExists = await Topfinish.findById(topfinishId);
+      if (!topfinishExists) return res.status(404).json({ error: true, msg: "Invalid Topfinish!" });
     }
-  }
 
-  const product = await Product.findByIdAndUpdate(
-    req.params.id,
-    {
-      name: req.body.name,
-      description: req.body.description,
-      images: imagesArr,
-      price: req.body.price,
-      category: category,
-      legfinish: legfinish,
-      legmaterial: legmaterial,
-      topfinish: topfinishId,
-      topmaterial: topmaterialId,
-      height: req.body.height,
-      width: req.body.width,
-      length: req.body.length,
-      weight: req.body.weight,
-      isFeatured: req.body.isFeatured,
-    },
-    { new: true }
-  );
+    if (topmaterialId) {
+      const topmaterialExists = await Topmaterial.findById(topmaterialId);
+      if (!topmaterialExists) return res.status(404).json({ error: true, msg: "Invalid Topmaterial!" });
+    }
 
-  if (!product) {
+    // Get existing product
+    const existingProduct = await Product.findById(req.params.id);
+    if (!existingProduct) {
+      return res.status(404).json({ error: true, msg: "Product not found" });
+    }
+
+    let imagePaths;
+
+    if (files?.length > 0) {
+      // Delete old images from disk
+      if (existingProduct.images?.length) {
+        existingProduct.images.forEach(img => {
+          const filePath = path.join("uploads", img);
+          if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+        });
+      }
+
+      // Save new image paths
+      imagePaths = files.map(file => file.filename);
+    } else {
+      // No new images, keep old ones
+      imagePaths = existingProduct.images;
+    }
+
+    const updatedProduct = await Product.findByIdAndUpdate(
+      req.params.id,
+      {
+        name: req.body.name,
+        category,
+        legfinish,
+        legmaterial,
+        topfinish: topfinishId,
+        topmaterial: topmaterialId,
+        height: req.body.height,
+        width: req.body.width,
+        length: req.body.length,
+        cbm: req.body.cbm,
+        isFeatured: req.body.isFeatured,
+        images: imagePaths,
+      },
+      { new: true }
+    );
+
+    if (!updatedProduct) {
+      // Cleanup uploaded files if DB update failed
+      if (files?.length > 0) {
+        files.forEach(file => fs.unlinkSync(path.join('uploads', file.filename)));
+      }
+      return res.status(500).json({ error: true, msg: "Product update failed" });
+    }
+
+    return res.status(200).json({
+      success: true,
+      msg: "Product updated successfully",
+      product: updatedProduct,
+    });
+
+  } catch (err) {
+    // Cleanup new uploads on error
+    if (req.files?.length) {
+      req.files.forEach(file => fs.unlinkSync(path.join('uploads', file.filename)));
+    }
+
     return res.status(500).json({
-      message: "Product cannot be updated",
-      success: false,
+      error: true,
+      msg: process.env.NODE_ENV === 'production' ? "Server error" : err.message
     });
   }
-
-  productEditId = undefined;
-  return res.send(product);
 });
 
 export default router;

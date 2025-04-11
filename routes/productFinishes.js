@@ -4,6 +4,7 @@ import multer from "multer";
 import fs from "fs";
 import { Product } from "../models/product.js";
 import { Finish } from "../models/finish.js";
+import path from 'path';
 
 const router = express.Router();
 var imagesArr = [];
@@ -212,119 +213,89 @@ router.delete("/:productId", async (req, res) => {
     }
 });
 
+router.post('/create-with-images', upload.array("images"), async (req, res) => {
+    try {
+        const { productId, finishId } = req.body;
+        const files = req.files;
+
+        // Validate inputs
+        if (!productId || !finishId) {
+            return res.status(400).json({ error: true, msg: "Product ID and Finish ID are required" });
+        }
+
+        if (!files || files.length === 0) {
+            return res.status(400).json({ error: true, msg: "At least one image is required" });
+        }
+
+        // Check existence
+        const [productExists, finishExists] = await Promise.all([
+            Product.findById(productId),
+            Finish.findById(finishId)
+        ]);
+
+        if (!productExists) {
+            return res.status(404).json({ error: true, msg: "Product not found" });
+        }
+        if (!finishExists) {
+            return res.status(404).json({ error: true, msg: "Finish not found" });
+        }
+
+        // Check for duplicates
+        let productFinish = await Productfinishes.findOne({ productId });
+        if (productFinish) {
+            const finishExists = productFinish.finishes.some(
+                finish => finish.name.toString() === finishId
+            );
+
+            if (finishExists) {
+                // Cleanup uploaded files
+                files.forEach(file => {
+                    fs.unlinkSync(path.join('uploads', file.filename));
+                });
+                return res.status(409).json({
+                    error: true,
+                    msg: "This finish already exists for the product"
+                });
+            }
+        }
+
+        // Process files
+        const imagePaths = files.map(file => file.filename);
+        const newFinish = { name: finishId, images: imagePaths };
+
+        // Update or create
+        if (productFinish) {
+            productFinish.finishes.push(newFinish);
+            await productFinish.save();
+        } else {
+            productFinish = new Productfinishes({
+                productId,
+                finishes: [newFinish],
+            });
+            await productFinish.save();
+        }
+
+
+        return res.status(201).json({
+            success: true,
+            msg: "Finish added successfully with images",
+            productFinish
+        });
+
+    } catch (err) {
+        // Cleanup on error
+        if (req.files?.length) {
+            req.files.forEach(file => {
+                fs.unlinkSync(path.join('uploads', file.filename));
+            });
+        }
+        return res.status(500).json({
+            error: true,
+            msg: process.env.NODE_ENV === 'production'
+                ? "Server error"
+                : err.message
+        });
+    }
+});
+
 export default router;
-
-//     try {
-//         const productFinish = await Productfinishes.find().populate("productId name");
-//         if (!productFinish.length) {
-//             return res.status(404).json({ message: 'ProductFinish not found' });
-//         }
-//         return res.status(200).json({
-//             productfinishes: productFinish
-//         });
-//     } catch (err) {
-//         res.status(400).json({ error: err.message });
-//     }
-// });
-
-// router.post('/create', async (req, res) => {
-//     try {
-//         const { productId, name } = req.body;
-
-//         const existingProductFinish = await Productfinishes.findOne({ productId, name });
-//         if (existingProductFinish) {
-//             return res.status(400).json({ message: 'ProductFinish with this name already exists for the given productId' });
-//         }
-
-//         const newProductFinish = new Productfinishes(
-//             {
-//                 productId,
-//                 name,
-//                 images: imagesArr
-//             }
-//         );
-//         await newProductFinish.save();
-//         imagesArr = []
-//         return res.status(201).json(newProductFinish);
-//     } catch (err) {
-//         return res.status(400).json({ error: err.message });
-//     }
-// });
-
-// router.get('/:productId', async (req, res) => {
-//     try {
-//         const productFinish = await Productfinishes.find({ productId: req.params.productId });
-//         if (!productFinish.length) {
-//             return res.status(404).json({ message: 'ProductFinish not found for this productId' });
-//         }
-//         res.json(productFinish);
-//     } catch (err) {
-//         res.status(400).json({ error: err.message });
-//     }
-// });
-
-// router.delete('/deleteImage', async (req, res) => {
-//     const imgUrl = req.query.img;
-
-//     if (!imgUrl) {
-//         return res.status(400).json({ success: false, msg: 'Image URL is required' });
-//     }
-
-//     try {
-//         const urlArr = imgUrl.split('/');
-//         const image = urlArr[urlArr.length - 1];
-
-//         // Delete the image file from the uploads folder
-//         const imagePath = `uploads/${image}`;
-//         if (fs.existsSync(imagePath)) {
-//             fs.unlinkSync(imagePath);
-//         } else {
-//             return res.status(404).json({ success: false, msg: 'Image not found!' });
-//         }
-
-//         return res.status(200).json({ success: true, msg: 'Image deleted successfully!' });
-//     } catch (error) {
-//         console.error(error);
-//         return res.status(500).json({ success: false, msg: 'Failed to delete the image' });
-//     }
-// })
-
-// // router.put('/:id', async (req, res) => {
-// //     try {
-// //         const updatedProductFinish = await Productfinishes.findByIdAndUpdate(
-// //             req.params.id,
-// //             req.body,
-// //             { new: true }
-// //         );
-// //         if (!updatedProductFinish) {
-// //             return res.status(404).json({ message: 'ProductFinish not found' });
-// //         }
-// //         res.json(updatedProductFinish);
-// //     } catch (err) {
-// //         res.status(400).json({ error: err.message });
-// //     }
-// // });
-
-// router.delete('/:id', async (req, res) => {
-//     try {
-
-//         const productfinish = await Productfinishes.findById(req.params.id)
-//         const images = productfinish.images;
-
-//         if (images.length !== 0) {
-//             for (let image of images) {
-//                 fs.unlinkSync(`uploads/${image}`)
-//             }
-//         }
-
-//         const deletedProductFinish = await Productfinishes.findByIdAndDelete(req.params.id);
-//         if (!deletedProductFinish) {
-//             return res.status(404).json({ message: 'ProductFinish not found' });
-//         }
-//         res.json({ message: 'ProductFinish deleted successfully' });
-//     } catch (err) {
-//         res.status(400).json({ error: err.message });
-//     }
-// });
-
-// export default router;   

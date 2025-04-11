@@ -20,6 +20,9 @@ import productTopRoutes from './routes/productTops.js';
 import topRoutes from './routes/top.js';
 import topFinishRoutes from './routes/topFinish.js';
 import topMaterialRoutes from './routes/topMaterial.js';
+import homepageimageRoutes from './routes/homepageimg.js';
+import mobileimageRoutes from './routes/mobileimg.js';
+import contactRoutes from './routes/contact.js';
 
 const app = express()     
 
@@ -29,6 +32,7 @@ app.options('*', cors())
 //middleware
 app.use(bodyParser.json())
 app.use(express.json())
+
 app.use(authJwt())
 
 app.use('/uploads', express.static("uploads"))
@@ -46,6 +50,9 @@ app.use('/api/producttop', productTopRoutes)
 app.use('/api/top', topRoutes)
 app.use('/api/topfinish', topFinishRoutes)
 app.use('/api/topmaterial', topMaterialRoutes)
+app.use('/api/homepageimg', homepageimageRoutes)
+app.use('/api/mobileimg', mobileimageRoutes)
+app.use('/api/contact', contactRoutes)
 
 //Database
 mongoose.connect(process.env.CONNECTION_STRING).then(() => {
