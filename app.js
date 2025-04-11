@@ -29,6 +29,25 @@ const app = express()
 app.use(cors())
 app.options('*', cors())
 
+const allowedOrigins = [
+    "http://localhost:3000", // for local development
+    "https://your-frontend-app.vercel.app", // replace with your deployed Vercel frontend URL
+  ];
+  
+  app.use(cors({
+    origin: function (origin, callback) {
+      // allow requests with no origin (like mobile apps or curl requests)
+      if (!origin) return callback(null, true);
+      if (allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      } else {
+        return callback(new Error("Not allowed by CORS"));
+      }
+    },
+    credentials: true,
+  }));
+  
+
 //middleware
 app.use(bodyParser.json())
 app.use(express.json())
