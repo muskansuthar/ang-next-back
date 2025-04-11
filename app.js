@@ -31,7 +31,8 @@ app.options('*', cors())
 
 const allowedOrigins = [
     "http://localhost:3000", // for local development
-    "https://your-frontend-app.vercel.app", // replace with your deployed Vercel frontend URL
+    "http://localhost:3001", // for local development
+    "https://ang-next-front-dqz6-git-main-muskansuthars-projects.vercel.app/", // replace with your deployed Vercel frontend URL
   ];
   
   app.use(cors({
