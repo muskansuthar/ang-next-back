@@ -11,9 +11,6 @@ import path from 'path';
 
 const router = express.Router();
 
-var imagesArr = [];
-var productEditId;
-
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
     cb(null, "uploads");
@@ -24,27 +21,6 @@ const storage = multer.diskStorage({
 });
 
 const upload = multer({ storage: storage });
-
-router.post("/upload", upload.array("images"), async (req, res) => {
-  if (productEditId !== undefined) {
-    const product = await Product.findById(productEditId);
-    const images = product.images;
-
-    if (images.length !== 0) {
-      for (let image of images) {
-        fs.unlinkSync(`uploads/${image}`);
-      }
-    }
-  }
-  imagesArr = [];
-  const files = req.files;
-
-  for (let i = 0; i < files.length; i++) {
-    imagesArr.push(files[i].filename);
-  }
-
-  return res.json(imagesArr);
-});
 
 router.get("/featured", async (req, res) => {
   const productList = await Product.find({ isFeatured: true });
@@ -241,7 +217,6 @@ router.post("/create", upload.array("images"), async (req, res) => {
 
 
 router.get("/:id", async (req, res) => {
-  productEditId = req.params.id;
   const product = await Product.findById(req.params.id).populate(
     "category legfinish legmaterial topfinish topmaterial"
   );
@@ -255,37 +230,6 @@ router.get("/:id", async (req, res) => {
   return res.status(200).send(product);
 });
 
-router.delete("/deleteImage", async (req, res) => {
-  const imgUrl = req.query.img;
-
-  if (!imgUrl) {
-    return res
-      .status(400)
-      .json({ error: true, msg: "Image URL is required" });
-  }
-
-  try {
-    const urlArr = imgUrl.split("/");
-    const image = urlArr[urlArr.length - 1];
-
-    // Delete the image file from the uploads folder
-    const imagePath = `uploads/${image}`;
-    if (fs.existsSync(imagePath)) {
-      fs.unlinkSync(imagePath);
-    } else {
-      return res.status(404).json({ error: true, msg: "Image not found!" });
-    }
-
-    return res
-      .status(200)
-      .json({ error: true, msg: "Image deleted successfully!" });
-  } catch (error) {
-    console.error(error);
-    return res
-      .status(500)
-      .json({ error: true, msg: "Failed to delete the image" });
-  }
-});
 
 router.delete("/:id", async (req, res) => {
   const product = await Product.findById(req.params.id);
