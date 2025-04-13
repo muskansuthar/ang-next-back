@@ -50,23 +50,23 @@ router.get("/", async (req, res) => {
 });
 
 router.get('/:id', async (req, res) => {
-  try {
-    const homepageimg = await Homepageimage.findById(req.params.id);
+    try {
+        const homepageimg = await Homepageimage.findById(req.params.id);
 
-    if (!homepageimg) {
-      return res.status(404).json({ error: true, msg: "The home page image with the given ID was not found" });
+        if (!homepageimg) {
+            return res.status(404).json({ error: true, msg: "The home page image with the given ID was not found" });
+        }
+
+        return res.status(200).json(homepageimg);
+    } catch (error) {
+        return res.status(500).json({ error: true, msg: "An error occurred while fetching the home page image", details: error.message });
     }
-
-    return res.status(200).json(homepageimg);
-  } catch (error) {
-    return res.status(500).json({ error: true, msg: "An error occurred while fetching the home page image", details: error.message });
-  }
 });
 
 router.put("/:id", upload.array("images"), async (req, res) => {
     try {
-        
-        const files = req.files; 
+
+        const files = req.files;
 
         if (!files || files.length === 0) {
             return res.status(400).json({ error: true, msg: "No image files provided" });
@@ -77,16 +77,16 @@ router.put("/:id", upload.array("images"), async (req, res) => {
             return res.status(404).json({ error: true, msg: "Image document not found" });
         }
 
-        if(imageDoc.images.length > 0) {
+        if (imageDoc.images.length > 0) {
             imageDoc.images.forEach(filename => {
-              const filePath = path.join("uploads", filename);
-              if (fs.existsSync(filePath)) {
-                fs.unlinkSync(filePath);
-              }
+                const filePath = path.join("uploads", filename);
+                if (fs.existsSync(filePath)) {
+                    fs.unlinkSync(filePath);
+                }
             });
-          }
+        }
 
-          const newImagePaths = files.map(file => file.filename);
+        const newImagePaths = files.map(file => file.filename);
 
         const updatedImage = await Homepageimage.findByIdAndUpdate(
             req.params.id,
@@ -99,5 +99,28 @@ router.put("/:id", upload.array("images"), async (req, res) => {
         res.status(500).json({ error: true, msg: "Failed to update images" });
     }
 });
+
+router.delete('/:id', async (req, res) => {
+  try {
+    const homepageimage = await Homepageimage.findById(req.params.id)
+    const images = homepageimage.images;
+
+    if (images.length !== 0) {
+      for (let image of images) {
+        fs.unlinkSync(`uploads/${image}`)
+      }
+    }
+    const deletedHomepageimage = await Homepageimage.findByIdAndDelete(req.params.id);
+
+    if (!deletedHomepageimage) {
+      return res.status(404).json({ error: true, msg: "Homepageimage not found!" });
+    }
+
+    return res.status(200).json({ success: true, msg: "Homepageimage Deleted!" });
+  } catch (error) {
+    return res.status(500).json({ error: true, msg: "An error occurred while deleting the homepageimage", details: error.message });
+  }
+});
+
 
 export default router;

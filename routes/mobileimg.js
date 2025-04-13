@@ -99,4 +99,27 @@ router.put("/:id", upload.array("images"), async (req, res) => {
     }
 });
 
+router.delete('/:id', async (req, res) => {
+  try {
+    const mobileimage = await Mobileimage.findById(req.params.id)
+    const images = mobileimage.images;
+
+    if (images.length !== 0) {
+      for (let image of images) {
+        fs.unlinkSync(`uploads/${image}`)
+      }
+    }
+    const deletedMobileimage = await Mobileimage.findByIdAndDelete(req.params.id);
+
+    if (!deletedMobileimage) {
+      return res.status(404).json({ error: true, msg: "Mobileimage not found!" });
+    }
+
+    return res.status(200).json({ success: true, msg: "Mobileimage Deleted!" });
+  } catch (error) {
+    return res.status(500).json({ error: true, msg: "An error occurred while deleting the mobileimage", details: error.message });
+  }
+});
+
+
 export default router;
