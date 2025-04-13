@@ -21,6 +21,12 @@ const upload = multer({ storage: storage });
 router.post("/create", upload.array("images"), async (req, res) => {
     try {
         const files = req.files;
+
+        const uploadDir = path.join(__dirname, "..", "uploads"); // adjust if needed
+        if (!fs.existsSync(uploadDir)) {
+            fs.mkdirSync(uploadDir, { recursive: true });
+        }
+
         if (!files || files.length === 0) {
             return res.status(400).json({ error: true, msg: "No image files provided" });
         }
@@ -101,25 +107,25 @@ router.put("/:id", upload.array("images"), async (req, res) => {
 });
 
 router.delete('/:id', async (req, res) => {
-  try {
-    const homepageimage = await Homepageimage.findById(req.params.id)
-    const images = homepageimage.images;
+    try {
+        const homepageimage = await Homepageimage.findById(req.params.id)
+        const images = homepageimage.images;
 
-    if (images.length !== 0) {
-      for (let image of images) {
-        fs.unlinkSync(`uploads/${image}`)
-      }
+        if (images.length !== 0) {
+            for (let image of images) {
+                fs.unlinkSync(`uploads/${image}`)
+            }
+        }
+        const deletedHomepageimage = await Homepageimage.findByIdAndDelete(req.params.id);
+
+        if (!deletedHomepageimage) {
+            return res.status(404).json({ error: true, msg: "Homepageimage not found!" });
+        }
+
+        return res.status(200).json({ success: true, msg: "Homepageimage Deleted!" });
+    } catch (error) {
+        return res.status(500).json({ error: true, msg: "An error occurred while deleting the homepageimage", details: error.message });
     }
-    const deletedHomepageimage = await Homepageimage.findByIdAndDelete(req.params.id);
-
-    if (!deletedHomepageimage) {
-      return res.status(404).json({ error: true, msg: "Homepageimage not found!" });
-    }
-
-    return res.status(200).json({ success: true, msg: "Homepageimage Deleted!" });
-  } catch (error) {
-    return res.status(500).json({ error: true, msg: "An error occurred while deleting the homepageimage", details: error.message });
-  }
 });
 
 

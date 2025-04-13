@@ -8,36 +8,37 @@ const router = express.Router()
 
 router.post('/signup', async (req, res) => {
     const { name, phone, email, password, isAdmin } = req.body;
-
+  
     try {
-        const existingUser = await User.findOne({ email: email })
-        const existingUserByPh = await User.findOne({ phone: phone })
-
-        if (existingUser || existingUserByPh) {
-            return res.status(400).json({ error: true, msg: "user already exist!" })
-        }
-
-        const hashPassword = await bcrypt.hash(password, 10)
-
-        const result = await User.create({
-            name: name,
-            phone: phone,
-            email: email,
-            password: hashPassword,
-            isAdmin: isAdmin
-        })
-
-        const token = jwt.sign({ email: result.email, id: result._id }, process.env.JSON_WEB_TOKEN_SECRET_KEY)
-
-        return res.status(200).json({
-            user: result,
-            error: false,
-            token: token
-        })
+      // Check if ANY user already exists in the database
+      const userCount = await User.countDocuments();
+  
+      if (userCount > 0) {
+        return res.status(400).json({ error: true, msg: "Only one user is allowed. A user already exists." });
+      }
+  
+      const hashPassword = await bcrypt.hash(password, 10);
+  
+      const result = await User.create({
+        name,
+        phone,
+        email,
+        password: hashPassword,
+        isAdmin
+      });
+  
+      const token = jwt.sign({ email: result.email, id: result._id }, process.env.JSON_WEB_TOKEN_SECRET_KEY);
+  
+      return res.status(200).json({
+        user: result,
+        error: false,
+        token
+      });
     } catch (error) {
-        return res.status(500).json({ error: true, msg: "Something went wrong" })
+      return res.status(500).json({ error: true, msg: "Something went wrong" });
     }
-})
+  });
+  
 
 
 router.post('/signin', async (req, res) => {

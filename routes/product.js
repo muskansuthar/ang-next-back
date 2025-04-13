@@ -26,7 +26,7 @@ router.get("/featured", async (req, res) => {
   const productList = await Product.find({ isFeatured: true });
 
   if (!productList) {
-    return res.status(500).json({ error: true, msg:"Featured Products not found" });
+    return res.status(500).json({ error: true, msg: "Featured Products not found" });
   }
 
   return res.status(200).json(productList);
@@ -88,13 +88,13 @@ router.get("/", async (req, res) => {
     );
 
     if (!productList) {
-      return res.status(500).json({ error: true, msg:"Products not found" });
+      return res.status(500).json({ error: true, msg: "Products not found" });
     }
     return res.status(200).json({
       products: productList,
     });
   } catch (error) {
-    return res.status(500).json({ error: true, msg:"Server error" });
+    return res.status(500).json({ error: true, msg: "Server error" });
   }
 });
 
@@ -102,6 +102,11 @@ router.post("/create", upload.array("images"), async (req, res) => {
   try {
     const { category, legfinish, legmaterial, topfinish, topmaterial, name } = req.body;
     const files = req.files;
+
+    const uploadDir = path.join(__dirname, "..", "uploads"); // adjust if needed
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true });
+    }
 
     // Validate inputs
     if (!category || !legfinish || !legmaterial) {

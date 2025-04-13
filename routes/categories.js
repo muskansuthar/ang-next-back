@@ -102,6 +102,11 @@ router.post("/create", upload.array("images"), async (req, res) => {
     const { name } = req.body;
     const files = req.files;
 
+    const uploadDir = path.join(__dirname, "..", "uploads"); // adjust if needed
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true });
+    }
+
     if (!name) {
       return res.status(400).json({ error: true, msg: "Category name is required" });
     }
@@ -149,7 +154,7 @@ router.put("/:id", upload.array("images"), async (req, res) => {
     if (!category) {
       return res.status(404).json({ error: true, msg: "Category not found" });
     }
-    
+
     let imagePaths;
 
     if (files?.length > 0) {
