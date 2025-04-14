@@ -22,11 +22,6 @@ router.post("/create", upload.array("images"), async (req, res) => {
     try {
         const files = req.files;
 
-        const uploadDir = path.join(__dirname, "..", "uploads"); // adjust if needed
-        if (!fs.existsSync(uploadDir)) {
-            fs.mkdirSync(uploadDir, { recursive: true });
-        }
-
         if (!files || files.length === 0) {
             return res.status(400).json({ error: true, msg: "No image files provided" });
         }

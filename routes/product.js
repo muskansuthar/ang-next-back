@@ -103,11 +103,6 @@ router.post("/create", upload.array("images"), async (req, res) => {
     const { category, legfinish, legmaterial, topfinish, topmaterial, name } = req.body;
     const files = req.files;
 
-    const uploadDir = path.join(__dirname, "..", "uploads"); // adjust if needed
-    if (!fs.existsSync(uploadDir)) {
-      fs.mkdirSync(uploadDir, { recursive: true });
-    }
-
     // Validate inputs
     if (!category || !legfinish || !legmaterial) {
       return res.status(400).json({ error: true, msg: "Category, legfinish, and legmaterial are required" });
