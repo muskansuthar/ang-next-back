@@ -31,6 +31,11 @@ router.post("/create", upload.array("images"), async (req, res) => {
 
     res.status(201).json({ error: false, msg: "Images uploaded", data: image });
   } catch (err) {
+    if (req.files?.length) {
+      req.files.forEach(file => {
+        fs.unlinkSync(path.join('uploads', file.filename));
+      });
+    }
     res.status(500).json({ error: true, msg: "Failed to upload images" });
   }
 });

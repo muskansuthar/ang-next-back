@@ -19,12 +19,10 @@ const productSchema = mongoose.Schema({
     legfinish: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Legfinish',
-        required: true
     },
     legmaterial: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Legmaterial',
-        required: true
     },
     topfinish: {
         type: mongoose.Schema.Types.ObjectId,
@@ -47,6 +45,10 @@ const productSchema = mongoose.Schema({
         required: true
     },
     cbm: {
+        type: String,
+        required: true
+    },
+    code: {
         type: String,
         required: true
     },

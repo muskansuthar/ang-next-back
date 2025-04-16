@@ -135,6 +135,11 @@ router.post("/create", upload.array("images"), async (req, res) => {
 
     res.status(201).json({ error: false, msg: "Category created successfully", data: newCategory });
   } catch (err) {
+    if (req.files?.length) {
+      req.files.forEach(file => {
+        fs.unlinkSync(path.join('uploads', file.filename));
+      });
+    }
     return res.status(500).json({ error: true, msg: "Failed to create category" });
   }
 });

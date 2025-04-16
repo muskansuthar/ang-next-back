@@ -104,8 +104,8 @@ router.post("/create", upload.array("images"), async (req, res) => {
     const files = req.files;
 
     // Validate inputs
-    if (!category || !legfinish || !legmaterial) {
-      return res.status(400).json({ error: true, msg: "Category, legfinish, and legmaterial are required" });
+    if (!category) {
+      return res.status(400).json({ error: true, msg: "Category are required" });
     }
 
     if (!files || files.length === 0) {
@@ -124,25 +124,19 @@ router.post("/create", upload.array("images"), async (req, res) => {
     }
 
     // Check existence of category, legfinish, and legmaterial
-    const [categoryExists, legfinishExists, legmaterialExists] = await Promise.all([
-      Category.findById(category),
-      Legfinish.findById(legfinish),
-      Legmaterial.findById(legmaterial),
+    const [categoryExists] = await Promise.all([
+      Category.findById(category)
     ]);
 
     if (!categoryExists) {
       return res.status(404).json({ error: true, msg: "Invalid Category!" });
     }
-    if (!legfinishExists) {
-      return res.status(404).json({ error: true, msg: "Invalid Legfinish!" });
-    }
-    if (!legmaterialExists) {
-      return res.status(404).json({ error: true, msg: "Invalid Legmaterial!" });
-    }
 
     // Check for topfinish and topmaterial if provided
     let topfinishId = topfinish?.trim() ? topfinish : null;
     let topmaterialId = topmaterial?.trim() ? topmaterial : null;
+    let legfinishId = legfinish?.trim() ? legfinish : null;
+    let legmaterialId = legmaterial?.trim() ? legmaterial : null;
 
     if (topfinishId) {
       const topfinishExists = await Topfinish.findById(topfinishId);
@@ -158,6 +152,20 @@ router.post("/create", upload.array("images"), async (req, res) => {
       }
     }
 
+    if (legfinishId) {
+      const legfinishExists = await Legfinish.findById(legfinishId);
+      if (!legfinishExists) {
+        return res.status(404).json({ error: true, msg: "Invalid Legfinish!" });
+      }
+    }
+
+    if (legmaterialId) {
+      const legmaterialExists = await Legmaterial.findById(legmaterialId);
+      if (!legmaterialExists) {
+        return res.status(404).json({ error: true, msg: "Invalid Legmaterial!" });
+      }
+    }
+
     // Process files (images)
     const imagePaths = files.map(file => file.filename);
 
@@ -166,14 +174,15 @@ router.post("/create", upload.array("images"), async (req, res) => {
       name: req.body.name,
       images: imagePaths,
       category: category,
-      legfinish: legfinish,
-      legmaterial: legmaterial,
+      legfinish:legfinishId,
+      legmaterial:legmaterialId,
       topfinish: topfinishId,
       topmaterial: topmaterialId,
       height: req.body.height,
       width: req.body.width,
       length: req.body.length,
       cbm: req.body.cbm,
+      code: req.body.code,
       isFeatured: req.body.isFeatured,
     });
 
@@ -261,31 +270,47 @@ router.put("/:id", upload.array("images"), async (req, res) => {
     const { category, legfinish, legmaterial, topfinish, topmaterial, name } = req.body;
     const files = req.files;
 
-    if (!category || !legfinish || !legmaterial || !name) {
-      return res.status(400).json({ error: true, msg: "Name, category, legfinish, and legmaterial are required" });
+    if (!category || !name) {
+      return res.status(400).json({ error: true, msg: "Name, category are required" });
     }
 
-    const [categoryExists, legfinishExists, legmaterialExists] = await Promise.all([
-      Category.findById(category),
-      Legfinish.findById(legfinish),
-      Legmaterial.findById(legmaterial),
+    const [categoryExists] = await Promise.all([
+      Category.findById(category)
     ]);
 
     if (!categoryExists) return res.status(404).json({ error: true, msg: "Invalid Category!" });
-    if (!legfinishExists) return res.status(404).json({ error: true, msg: "Invalid Legfinish!" });
-    if (!legmaterialExists) return res.status(404).json({ error: true, msg: "Invalid Legmaterial!" });
 
     let topfinishId = topfinish?.trim() ? topfinish : null;
     let topmaterialId = topmaterial?.trim() ? topmaterial : null;
+    let legfinishId = legfinish?.trim() ? legfinish : null;
+    let legmaterialId = legmaterial?.trim() ? legmaterial : null;
 
     if (topfinishId) {
       const topfinishExists = await Topfinish.findById(topfinishId);
-      if (!topfinishExists) return res.status(404).json({ error: true, msg: "Invalid Topfinish!" });
+      if (!topfinishExists) {
+        return res.status(404).json({ error: true, msg: "Invalid Topfinish!" });
+      }
     }
 
     if (topmaterialId) {
       const topmaterialExists = await Topmaterial.findById(topmaterialId);
-      if (!topmaterialExists) return res.status(404).json({ error: true, msg: "Invalid Topmaterial!" });
+      if (!topmaterialExists) {
+        return res.status(404).json({ error: true, msg: "Invalid Topmaterial!" });
+      }
+    }
+
+    if (legfinishId) {
+      const legfinishExists = await Legfinish.findById(legfinishId);
+      if (!legfinishExists) {
+        return res.status(404).json({ error: true, msg: "Invalid Legfinish!" });
+      }
+    }
+
+    if (legmaterialId) {
+      const legmaterialExists = await Legmaterial.findById(legmaterialId);
+      if (!legmaterialExists) {
+        return res.status(404).json({ error: true, msg: "Invalid Legmaterial!" });
+      }
     }
 
     // Get existing product
@@ -317,14 +342,15 @@ router.put("/:id", upload.array("images"), async (req, res) => {
       {
         name: req.body.name,
         category,
-        legfinish,
-        legmaterial,
+        legfinish:legfinishId,
+        legmaterial:legmaterialId,
         topfinish: topfinishId,
         topmaterial: topmaterialId,
         height: req.body.height,
         width: req.body.width,
         length: req.body.length,
         cbm: req.body.cbm,
+        code: req.body.code,
         isFeatured: req.body.isFeatured,
         images: imagePaths,
       },
