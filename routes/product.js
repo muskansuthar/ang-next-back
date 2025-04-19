@@ -100,7 +100,7 @@ router.get("/", async (req, res) => {
 
 router.post("/create", upload.array("images"), async (req, res) => {
   try {
-    const { category, legfinish, legmaterial, topfinish, topmaterial, name } = req.body;
+    const { category, legfinish, legmaterial, topfinish, topmaterial, code } = req.body;
     const files = req.files;
 
     // Validate inputs
@@ -113,14 +113,14 @@ router.post("/create", upload.array("images"), async (req, res) => {
     }
 
     // Check if the product already exists by name
-    const existingProduct = await Product.findOne({ name: name.trim() });
+    const existingProduct = await Product.findOne({ code: code.trim() });
     if (existingProduct) {
       // Cleanup uploaded files if the product already exists
       if (files && files.length > 0) {
         files.forEach(file => fs.unlinkSync(path.join('uploads', file.filename)));
       }
 
-      return res.status(409).json({ error: true, msg: "Product with this name already exists" });
+      return res.status(409).json({ error: true, msg: "Product with this code number already exists" });
     }
 
     // Check existence of category, legfinish, and legmaterial
